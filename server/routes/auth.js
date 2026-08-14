@@ -57,10 +57,6 @@ router.post('/register', async (req, res) => {
       userExists = db.findUserByEmail(normalizedEmail);
     }
 
-    if (userExists) {
-      return res.status(400).json({ message: 'User already exists' });
-    }
-
     const userId = `usr-${Date.now()}`;
     const hashedPassword = await bcrypt.hash(password, 10);
     const userData = {
