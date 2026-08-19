@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { sendOtpApi } from '../services/api';
 import { Leaf, Mail, Lock, KeyRound, ArrowRight, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -24,6 +24,21 @@ export default function LoginPage() {
   
   const { login, loginWithOtp } = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Read query params for Quick Login from Footer
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const mode = params.get('mode');
+    const emailParam = params.get('email');
+    
+    if (mode === 'otp') {
+      setLoginMode('email-otp');
+    }
+    if (emailParam) {
+      setOtpEmail(emailParam);
+    }
+  }, [location.search]);
 
   // Handle Resend Countdown Timer
   useEffect(() => {
