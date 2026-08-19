@@ -11,6 +11,7 @@ const appointmentRoutes = require('./routes/appointments');
 const orderRoutes = require('./routes/orders');
 const authRoutes = require('./routes/auth');
 const paymentRoutes = require('./routes/payment');
+const batchRoutes = require('./routes/batches');
 
 // ── Fail fast if JWT_SECRET is not set ──
 if (!process.env.JWT_SECRET) {
@@ -34,15 +35,26 @@ app.use(helmet({
 // CORS: restrict to allowed origins only
 const allowedOrigins = [
   process.env.CLIENT_URL || 'http://localhost:5173',
-  'http://localhost:5005' // Self (for production static serving)
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
+  'http://localhost:5005',
+  'http://127.0.0.1:5005'
 ];
+
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (server-to-server, Postman, mobile apps)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
+    if (
+      allowedOrigins.includes(origin) ||
+      origin.startsWith('http://localhost:') ||
+      origin.startsWith('http://127.0.0.1:')
+    ) {
       return callback(null, true);
     }
+    console.error(`[CORS Blocked] Origin: ${origin}`);
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true
@@ -79,8 +91,10 @@ app.use('/assets', express.static(path.join(__dirname, '../assets')));
 app.use('/api', productRoutes);
 app.use('/api', appointmentRoutes);
 app.use('/api', orderRoutes);
+app.use('/api', paymentRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/payment', paymentRoutes);
+app.use('/api', batchRoutes);
 
 // Health check endpoint with DB status
 app.get('/api/health', (req, res) => {

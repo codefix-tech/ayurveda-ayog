@@ -13,7 +13,8 @@ const appointmentSchema = new mongoose.Schema({
   slot: { type: String, required: true },
   symptoms: { type: String },
   fee: { type: Number, default: 500 },
-  status: { type: String, enum: ['Confirmed', 'Cancelled', 'Completed'], default: 'Confirmed' }
+  status: { type: String, enum: ['Confirmed', 'Cancelled', 'Completed'], default: 'Confirmed' },
+  adminNotes: { type: String, default: '' }
 }, {
   timestamps: true
 });

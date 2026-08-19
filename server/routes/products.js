@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db/dbManager');
 const Product = require('../models/Product');
+const ProductBatch = require('../models/ProductBatch');
+const BulkSplitRule = require('../models/BulkSplitRule');
 const { getMongoStatus } = require('../config/db');
 const { protect, admin } = require('../middleware/auth');
 
@@ -156,7 +158,7 @@ router.get('/brands', (req, res) => {
 
 // POST create new product (Admin only — PROTECTED)
 router.post('/products', protect, admin, async (req, res) => {
-  const { title, category, brand, price, originalPrice, image, description, usage, ingredients } = req.body;
+  const { title, category, brand, price, originalPrice, image, description, usage, ingredients, stock } = req.body;
 
   if (!title || !category || !price) {
     return res.status(400).json({ success: false, message: 'Title, category and price are required.' });
@@ -167,6 +169,8 @@ router.post('/products', protect, admin, async (req, res) => {
     return res.status(400).json({ success: false, message: 'Price must be a positive number.' });
   }
 
+  const stockNum = stock !== undefined && !isNaN(Number(stock)) ? Math.max(0, Number(stock)) : 50;
+
   const newProduct = {
     id: `PRD-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
     title: title.trim().substring(0, 200),
@@ -174,11 +178,12 @@ router.post('/products', protect, admin, async (req, res) => {
     brand: brand ? brand.trim().substring(0, 100) : 'Ayurveda Arogya',
     price: Number(price),
     originalPrice: originalPrice ? Number(originalPrice) : Number(price),
-    image: image || '/assets/tg3olrrw2k7kyxpw9jte.webp',
+    image: image || 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&q=80&w=400',
     rating: 5.0,
     reviewsCount: 1,
-    inStock: true,
-    isFeatured: false,
+    inStock: stockNum > 0,
+    stock: stockNum,
+    isFeatured: req.body.isFeatured === true || req.body.isFeatured === 'true',
     isNew: true,
     description: (description || 'Premium Ayurvedic herbal formulation.').substring(0, 2000),
     usage: (usage || 'As directed by physician.').substring(0, 500),
@@ -189,44 +194,103 @@ router.post('/products', protect, admin, async (req, res) => {
     if (getMongoStatus()) {
       const prodDoc = new Product(newProduct);
       await prodDoc.save();
+
+      // Create initial batch BATCH-001
+      const initialBatch = new ProductBatch({
+        productId: newProduct.id,
+        batchNumber: 'BATCH-001',
+        sellingPrice: Number(price),
+        costPrice: 0,
+        totalStock: stockNum,
+        remainingStock: stockNum,
+        isActive: true,
+        isOldLot: false,
+        purchaseDate: new Date()
+      });
+      await initialBatch.save();
+
+      // Create default bulk split rule (5+ units -> 30% old / 70% new)
+      await BulkSplitRule.create({
+        productId: newProduct.id,
+        minBulkQty: 5,
+        oldBatchRatio: 0.30,
+        newBatchRatio: 0.70,
+        isActive: true
+      });
     }
   } catch (err) {
     console.error('Mongo product save error:', err.message);
   }
 
+  // Sync to file DB
+  db.saveProduct(newProduct);
+
   res.status(201).json({
     success: true,
-    message: 'Product added successfully to MongoDB!',
+    message: 'Product added successfully!',
     product: newProduct
   });
 });
 
 // PUT update product (Admin only — PROTECTED)
 router.put('/products/:id', protect, admin, async (req, res) => {
+  const updateData = { ...req.body };
+  
+  if (updateData.price !== undefined) {
+    updateData.price = Number(updateData.price);
+  }
+  if (updateData.originalPrice !== undefined) {
+    updateData.originalPrice = Number(updateData.originalPrice);
+  }
+  if (updateData.stock !== undefined) {
+    updateData.stock = Math.max(0, Number(updateData.stock));
+    updateData.inStock = updateData.stock > 0;
+  }
+
+  let updatedProduct = null;
+
   try {
     if (getMongoStatus()) {
-      const updated = await Product.findOneAndUpdate(
+      updatedProduct = await Product.findOneAndUpdate(
         { id: req.params.id },
-        req.body,
+        updateData,
         { new: true }
       );
-      if (updated) return res.json({ success: true, product: updated });
     }
   } catch (err) {
     console.error('Mongo product update error:', err.message);
   }
 
-  res.json({ success: true, message: 'Product updated', product: req.body });
+  // File fallback update
+  const fileUpdated = db.updateProduct(req.params.id, updateData);
+  if (!updatedProduct && fileUpdated) {
+    updatedProduct = fileUpdated;
+  }
+
+  if (!updatedProduct) {
+    return res.status(404).json({ success: false, message: 'Product not found' });
+  }
+
+  res.json({ success: true, message: 'Product updated successfully', product: updatedProduct });
 });
 
 // DELETE remove product (Admin only — PROTECTED)
 router.delete('/products/:id', protect, admin, async (req, res) => {
+  let deleted = false;
   try {
     if (getMongoStatus()) {
-      await Product.findOneAndDelete({ id: req.params.id });
+      const resMongo = await Product.findOneAndDelete({ id: req.params.id });
+      if (resMongo) deleted = true;
     }
   } catch (err) {
     console.error('Mongo product delete error:', err.message);
+  }
+
+  const fileDeleted = db.deleteProduct(req.params.id);
+  if (fileDeleted) deleted = true;
+
+  if (!deleted) {
+    return res.status(404).json({ success: false, message: 'Product not found' });
   }
 
   res.json({ success: true, message: 'Product removed from database' });

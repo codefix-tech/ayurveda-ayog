@@ -18,9 +18,9 @@ export default function Footer() {
   return (
     <footer className="w-full bg-[#152420] text-white pt-16 pb-8 mt-20 font-sans border-t-4 border-emerald-600">
       <div className="max-w-7xl mx-auto px-6 lg:px-16">
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 pb-12 border-b border-white/10">
-          
+
           {/* Col 1: Brand & Contact Info */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
@@ -35,17 +35,17 @@ export default function Footer() {
             </p>
 
             <div className="space-y-2 text-xs text-gray-300 pt-2">
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Ayurveda Arogya Tower, MG Road, New Delhi 110001</span>
+              <div className="flex items-start gap-2">
+                <MapPin className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <span>Ayurveda Arogya, 82/3, First Floor, Patel Nagar, Saharanpur Road, Dehradun, Uttarakhand, 248001</span>
               </div>
               <div className="flex items-center gap-2">
                 <Phone className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Helpline: +91 (800) 425-2987</span>
+                <span>Phone/WhatsApp: +91-8171117711</span>
               </div>
               <div className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Email: support@ayurvedarogya.com</span>
+                <span>Email: info@ayurvedarogya.com</span>
               </div>
             </div>
           </div>
@@ -57,10 +57,10 @@ export default function Footer() {
             </h3>
             <ul className="space-y-2.5 text-xs text-gray-300">
               <li><Link to="/" className="hover:text-white hover:underline transition">Home</Link></li>
+              <li><Link to="/about" className="hover:text-white hover:underline transition">About Us</Link></li>
               <li><Link to="/shop" className="hover:text-white hover:underline transition">Shop Medicines</Link></li>
               <li><Link to="/book-appointment" className="hover:text-white hover:underline transition">Book Doctor Consultation</Link></li>
-              <li><Link to="/contact" className="hover:text-white hover:underline transition">Store Locator & Contact</Link></li>
-              <li><Link to="/shop?sort=new" className="hover:text-white hover:underline transition">New Arrivals</Link></li>
+              <li><Link to="/contact" className="hover:text-white hover:underline transition">Contact Us</Link></li>
             </ul>
           </div>
 
@@ -70,12 +70,11 @@ export default function Footer() {
               Support & Policies
             </h3>
             <ul className="space-y-2.5 text-xs text-gray-300">
-              <li><Link to="/contact" className="hover:text-white hover:underline transition">About Us</Link></li>
-              <li><Link to="/contact" className="hover:text-white hover:underline transition">Privacy Policy</Link></li>
-              <li><Link to="/contact" className="hover:text-white hover:underline transition">Return & Refund Policy</Link></li>
-              <li><Link to="/contact" className="hover:text-white hover:underline transition">Shipping & Delivery Policy</Link></li>
-              <li><Link to="/contact" className="hover:text-white hover:underline transition">Terms and Conditions</Link></li>
-              <li><Link to="/contact" className="hover:text-white hover:underline transition">Medical Disclaimer</Link></li>
+              <li><Link to="/about" className="hover:text-white hover:underline transition">About Us</Link></li>
+              <li><Link to="/privacy-policy" className="hover:text-white hover:underline transition">Privacy Policy</Link></li>
+              <li><Link to="/return-policy" className="hover:text-white hover:underline transition">Return & Refund Policy</Link></li>
+              <li><Link to="/shipping-policy" className="hover:text-white hover:underline transition">Shipping Policy</Link></li>
+              <li><Link to="/terms-and-conditions" className="hover:text-white hover:underline transition">Terms & Conditions</Link></li>
             </ul>
           </div>
 
@@ -117,17 +116,10 @@ export default function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-gray-400">
-          <p className="flex items-center gap-1">
+        <div className="pt-8 flex justify-center items-center text-xs text-gray-400 text-center">
+          <p className="flex items-center justify-center gap-1">
             © 2026 Ayurveda Arogya. Built with <Heart className="w-3.5 h-3.5 text-red-500 fill-current" /> for authentic natural healing.
           </p>
-
-          <div className="flex items-center gap-3 text-xs">
-            <span className="bg-white/10 px-2.5 py-1 rounded text-white/80 font-bold">Razorpay</span>
-            <span className="bg-white/10 px-2.5 py-1 rounded text-white/80 font-bold">UPI</span>
-            <span className="bg-white/10 px-2.5 py-1 rounded text-white/80 font-bold">Paytm</span>
-            <span className="bg-white/10 px-2.5 py-1 rounded text-white/80 font-bold">COD</span>
-          </div>
         </div>
 
       </div>

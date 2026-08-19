@@ -29,7 +29,11 @@ const orderSchema = new mongoose.Schema({
   discountAmount: { type: Number, default: 0 },
   paymentStatus: { type: String, default: 'Paid' },
   orderStatus: { type: String, enum: ['Processing', 'Shipped', 'Delivered', 'Cancelled'], default: 'Processing' },
-  estimatedDelivery: String
+  estimatedDelivery: String,
+  trackingNumber: { type: String, default: '' },
+  courier: { type: String, default: '' },
+  razorpayOrderId: String,
+  razorpayPaymentId: String
 }, {
   timestamps: true
 });
