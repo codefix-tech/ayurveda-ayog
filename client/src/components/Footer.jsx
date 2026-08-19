@@ -78,16 +78,21 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Col 4: Newsletter Subscription */}
+          {/* Col 4: Quick Login & Registration */}
           <div className="space-y-4">
             <h3 className="text-sm font-bold uppercase tracking-wider text-emerald-400 mb-2">
-              Subscribe & Save
+              Quick Login / Register
             </h3>
             <p className="text-xs text-gray-300 leading-relaxed">
-              Join 50,000+ wellness subscribers to receive weekly health tips and exclusive discount vouchers.
+              Enter your email to instantly log in or create a new account using a secure OTP.
             </p>
 
-            <form onSubmit={handleSubscribe} className="flex gap-2">
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (email.trim()) {
+                window.location.href = `/login?email=${encodeURIComponent(email)}&mode=otp`;
+              }
+            }} className="flex gap-2">
               <div className="relative flex-1">
                 <input
                   type="email"
@@ -101,7 +106,7 @@ export default function Footer() {
               <button
                 type="submit"
                 className="bg-emerald-600 hover:bg-emerald-500 text-white p-2.5 rounded-xl font-bold transition shadow-md"
-                aria-label="Subscribe"
+                aria-label="Continue with Email"
               >
                 <Send className="w-4 h-4" />
               </button>
@@ -109,7 +114,7 @@ export default function Footer() {
 
             <div className="flex items-center gap-2 pt-2 text-[11px] text-gray-400">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>Safe & Secure E-Commerce Checkout</span>
+              <span>Secure passwordless authentication</span>
             </div>
           </div>
 

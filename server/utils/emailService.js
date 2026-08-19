@@ -3,17 +3,21 @@ const OTP = require('../models/OTP');
 const db = require('../db/dbManager');
 const { getMongoStatus } = require('../config/db');
 
-// Create Nodemailer Transporter for Gmail SMTP
+// Create Nodemailer Transporter for SMTP
 function getTransporter() {
+  const host = process.env.EMAIL_HOST;
+  const port = process.env.EMAIL_PORT;
   const user = process.env.EMAIL_USER;
   const pass = process.env.EMAIL_PASS;
 
-  if (!user || !pass) {
+  if (!user || !pass || !host) {
     return null;
   }
 
   return nodemailer.createTransport({
-    service: 'gmail',
+    host,
+    port: parseInt(port, 10) || 587,
+    secure: parseInt(port, 10) === 465,
     auth: { user, pass }
   });
 }
@@ -121,7 +125,7 @@ async function sendEmailOtp({ email, purpose = 'login' }) {
       });
 
       emailSent = true;
-      console.log(`✉️ [GMAIL SMTP] OTP Email successfully dispatched to ${normalizedEmail}`);
+      console.log(`✉️ [SMTP] OTP Email successfully dispatched to ${normalizedEmail}`);
     } catch (mailErr) {
       console.error('Nodemailer send error:', mailErr.message);
     }
@@ -129,12 +133,12 @@ async function sendEmailOtp({ email, purpose = 'login' }) {
 
   // Always log to server terminal for development reference
   console.log(`\n======================================================`);
-  console.log(`🌿 [AYURVEDA AROGYA GMAIL/EMAIL OTP DISPATCH]`);
+  console.log(`🌿 [AYURVEDA AROGYA SMTP/EMAIL OTP DISPATCH]`);
   console.log(`📧 Destination Email : ${normalizedEmail}`);
   console.log(`🔑 Verification OTP  : ${otpCode}`);
   console.log(`⏰ Validity          : 5 Minutes (Expires at ${expiresAt.toLocaleTimeString()})`);
   console.log(`🎯 Purpose           : ${purpose.toUpperCase()}`);
-  console.log(`📡 SMTP Status       : ${emailSent ? '✅ SENT VIA GMAIL' : '⚠️ DEV SIMULATION (Set EMAIL_PASS in .env for live Gmail)'}`);
+  console.log(`📡 SMTP Status       : ${emailSent ? '✅ SENT VIA SMTP' : '⚠️ DEV SIMULATION (Set EMAIL_PASS in .env for live SMTP)'}`);
   console.log(`======================================================\n`);
 
   return {

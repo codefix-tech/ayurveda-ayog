@@ -84,8 +84,8 @@ app.use('/api/auth', authLimiter);
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
-// Serve static asset images
-app.use('/assets', express.static(path.join(__dirname, '../assets')));
+// Serve static asset images from server/public/assets
+app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
 
 // Register API Routes
 app.use('/api', productRoutes);
