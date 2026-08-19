@@ -44,16 +44,15 @@ export default function ContactPage() {
                 <MapPin className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
                 <div>
                   <h3 className="font-bold text-white">Main Pharmacy Store</h3>
-                  <p className="mt-0.5 text-gray-300">Ayurveda Arogya Tower, Plot 42, Connaught Place, New Delhi - 110001</p>
+                  <p className="mt-0.5 text-gray-300">Ayurveda Arogya, 82/3, First Floor, Patel Nagar, Saharanpur Road, Dehradun, Uttarakhand, 248001</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
                 <Phone className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
                 <div>
-                  <h3 className="font-bold text-white">Customer Support Helpline</h3>
-                  <p className="mt-0.5 text-gray-300">+91 (800) 425-2987 (Toll Free)</p>
-                  <p className="text-gray-400 text-[11px]">+91 98765 43210 (WhatsApp Order Tracking)</p>
+                  <h3 className="font-bold text-white">Phone / WhatsApp</h3>
+                  <p className="mt-0.5 text-gray-300">+91-8171117711</p>
                 </div>
               </div>
 
@@ -61,7 +60,7 @@ export default function ContactPage() {
                 <Mail className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
                 <div>
                   <h3 className="font-bold text-white">Email Enquiries</h3>
-                  <p className="mt-0.5 text-gray-300">support@ayurvedarogya.com</p>
+                  <p className="mt-0.5 text-gray-300">info@ayurvedarogya.com</p>
                 </div>
               </div>
 

@@ -87,23 +87,36 @@ export default function CartDrawer() {
                     <h4 className="text-xs font-bold text-gray-900 line-clamp-1">{item.title}</h4>
                     <p className="text-[10px] font-semibold text-emerald-700">{item.brand}</p>
                     
-                    <div className="flex items-center justify-between mt-2">
-                      <span className="text-sm font-black text-[#152420]">
-                        ₹{item.price.toFixed(2)}
+                    {item.isBulkSplit && (
+                      <span className="inline-block mt-0.5 bg-amber-100 text-amber-900 text-[9px] font-bold px-1.5 py-0.5 rounded">
+                        🌿 30/70 Bulk Split Rate
                       </span>
+                    )}
+
+                    <div className="flex items-center justify-between mt-2">
+                      <div>
+                        <span className="text-sm font-black text-[#152420]">
+                          ₹{(item.price * item.quantity).toFixed(2)}
+                        </span>
+                        {item.quantity > 1 && (
+                          <span className="text-[10px] text-gray-400 block">
+                            (₹{item.price.toFixed(2)}/unit)
+                          </span>
+                        )}
+                      </div>
 
                       {/* Quantity Controller */}
                       <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden bg-gray-50">
                         <button 
                           onClick={() => updateQuantity(item.id, -1)}
-                          className="px-2 py-1 hover:bg-gray-200 text-gray-600 transition"
+                          className="px-2 py-1 hover:bg-gray-200 text-gray-600 transition cursor-pointer"
                         >
                           <Minus className="w-3 h-3" />
                         </button>
                         <span className="px-2 text-xs font-bold text-gray-800">{item.quantity}</span>
                         <button 
                           onClick={() => updateQuantity(item.id, 1)}
-                          className="px-2 py-1 hover:bg-gray-200 text-gray-600 transition"
+                          className="px-2 py-1 hover:bg-gray-200 text-gray-600 transition cursor-pointer"
                         >
                           <Plus className="w-3 h-3" />
                         </button>

@@ -6,7 +6,7 @@ export default function HeroBanner() {
   return (
     <section className="relative w-full overflow-hidden rounded-3xl bg-gradient-to-br from-[#a4b9b7d7] via-[#ccece5d4] to-[#9fc8beb3] shadow-lg border border-emerald-100 my-4">
       <div className="relative z-10 flex flex-col-reverse md:flex-row items-center justify-between px-6 sm:px-10 md:px-16 py-10 md:py-16 gap-8">
-        
+
         {/* Left Text Block */}
         <div className="flex-1 text-center md:text-left max-w-2xl">
           <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-md px-3.5 py-1.5 rounded-full text-xs font-bold text-[#152420] border border-emerald-200/60 shadow-xs mb-4">
@@ -16,7 +16,7 @@ export default function HeroBanner() {
 
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-[#152420] leading-tight tracking-tight">
             Buy Medicines Online <br />
-            <span className="text-emerald-900 underline decoration-emerald-400 decoration-wavy decoration-2">
+            <span className="text-emerald-900">
               Easily & Safely
             </span>
           </h1>
@@ -62,13 +62,13 @@ export default function HeroBanner() {
         {/* Right Hero Banner Image */}
         <div className="flex-1 flex justify-center md:justify-end w-full">
           <div className="relative w-full max-w-[340px] sm:max-w-[440px] md:max-w-[500px] aspect-square rounded-2xl overflow-hidden shadow-2xl border-4 border-white/60 bg-white/40">
-            <img 
-              src="/assets/AyurvedaArogyaHeroBanner.webp" 
-              alt="Ayurveda Arogya Pharmacy Banner" 
+            <img
+              src="/assets/AyurvedaArogyaHeroBanner.webp"
+              alt="Ayurveda Arogya Pharmacy Banner"
               className="w-full h-full object-cover rounded-xl transform hover:scale-105 transition-transform duration-700"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
-            
+
             <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-md p-3 rounded-xl border border-white/80 shadow-lg flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-xl">⭐</span>

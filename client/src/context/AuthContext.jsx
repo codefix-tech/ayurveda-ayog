@@ -54,11 +54,11 @@ export const AuthProvider = ({ children }) => {
     return data;
   };
 
-  const register = async (name, email, password) => {
+  const register = async (name, email, phone, password) => {
     const res = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ name, email, phone, password }),
     });
 
     const data = await res.json();
@@ -70,6 +70,48 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('token', data.token);
     setToken(data.token);
     setUser(data);
+    return data;
+  };
+
+  const loginWithOtp = async (email, otp) => {
+    const res = await fetch('/api/auth/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otp, purpose: 'login' }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      throw new Error(data.message || 'Email OTP verification failed');
+    }
+
+    if (data.token) {
+      localStorage.setItem('token', data.token);
+      setToken(data.token);
+      setUser(data);
+    }
+    return data;
+  };
+
+  const registerWithOtp = async (email, otp, name, phone) => {
+    const res = await fetch('/api/auth/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otp, name, phone, purpose: 'register' }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      throw new Error(data.message || 'Email OTP registration failed');
+    }
+
+    if (data.token) {
+      localStorage.setItem('token', data.token);
+      setToken(data.token);
+      setUser(data);
+    }
     return data;
   };
 
@@ -88,6 +130,8 @@ export const AuthProvider = ({ children }) => {
         isLoading,
         login,
         register,
+        loginWithOtp,
+        registerWithOtp,
         logout,
       }}
     >

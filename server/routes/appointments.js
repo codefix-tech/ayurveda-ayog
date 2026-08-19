@@ -168,4 +168,36 @@ router.put('/appointments/:id/status', protect, admin, async (req, res) => {
   res.json({ success: true, appointment: updatedAppointment });
 });
 
+// PUT update appointment consultation notes (Admin only)
+router.put('/appointments/:id/notes', protect, admin, async (req, res) => {
+  const { adminNotes } = req.body;
+  const notesText = (adminNotes || '').trim().substring(0, 2000);
+
+  let updatedAppt = null;
+
+  try {
+    if (getMongoStatus()) {
+      updatedAppt = await Appointment.findOneAndUpdate(
+        { id: req.params.id },
+        { adminNotes: notesText },
+        { new: true }
+      );
+    }
+  } catch (err) {
+    console.error('Mongo appointment notes update error:', err.message);
+  }
+
+  // File fallback update
+  const fileUpdated = db.updateAppointmentNotes(req.params.id, notesText);
+  if (!updatedAppt && fileUpdated) {
+    updatedAppt = fileUpdated;
+  }
+
+  if (!updatedAppt) {
+    return res.status(404).json({ success: false, message: 'Appointment not found' });
+  }
+
+  res.json({ success: true, message: 'Appointment notes updated', appointment: updatedAppt });
+});
+
 module.exports = router;

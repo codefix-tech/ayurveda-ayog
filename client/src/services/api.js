@@ -67,7 +67,7 @@ export async function fetchMyAppointments() {
 }
 
 export async function createRazorpayOrder(amount, receipt) {
-  const res = await fetch(`${API_BASE}/payment/create-razorpay-order`, {
+  const res = await fetch(`${API_BASE}/create-order`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify({ amount, receipt })
@@ -76,10 +76,35 @@ export async function createRazorpayOrder(amount, receipt) {
 }
 
 export async function verifyRazorpayPayment(paymentData) {
-  const res = await fetch(`${API_BASE}/payment/verify-payment`, {
+  const res = await fetch(`${API_BASE}/verify-payment`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(paymentData)
   });
   return res.json();
 }
+
+export async function sendOtpApi(data) {
+  const res = await fetch(`${API_BASE}/auth/send-otp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  return res.json();
+}
+
+export async function verifyOtpApi(data) {
+  const res = await fetch(`${API_BASE}/auth/verify-otp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  return res.json();
+}
+
+export async function verifyPincodeApi(pincode) {
+  const res = await fetch(`${API_BASE}/pincode/${pincode}`);
+  return res.json();
+}
+
+

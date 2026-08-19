@@ -134,11 +134,66 @@ module.exports = {
     return null;
   },
 
+  // Product Management
+  saveProduct: (product) => {
+    const products = readJson('products.json', seedData.products);
+    products.unshift(product);
+    writeJson('products.json', products);
+    return product;
+  },
+  updateProduct: (id, updateData) => {
+    const products = readJson('products.json', seedData.products);
+    const index = products.findIndex(p => p.id === id || p._id === id);
+    if (index !== -1) {
+      products[index] = { ...products[index], ...updateData };
+      writeJson('products.json', products);
+      return products[index];
+    }
+    return null;
+  },
+  deleteProduct: (id) => {
+    let products = readJson('products.json', seedData.products);
+    const initialLen = products.length;
+    products = products.filter(p => p.id !== id && p._id !== id);
+    writeJson('products.json', products);
+    return products.length < initialLen;
+  },
+
+  // Appointment notes update
+  updateAppointmentNotes: (id, adminNotes) => {
+    const appointments = readJson('appointments.json', []);
+    const index = appointments.findIndex(a => a.id === id || a._id === id);
+    if (index !== -1) {
+      appointments[index].adminNotes = adminNotes;
+      writeJson('appointments.json', appointments);
+      return appointments[index];
+    }
+    return null;
+  },
+
+  // Order Tracking update
+  updateOrderTracking: (id, { trackingNumber, courier }) => {
+    const orders = readJson('orders.json', []);
+    const index = orders.findIndex(o => o.id === id || o._id === id);
+    if (index !== -1) {
+      if (trackingNumber !== undefined) orders[index].trackingNumber = trackingNumber;
+      if (courier !== undefined) orders[index].courier = courier;
+      writeJson('orders.json', orders);
+      return orders[index];
+    }
+    return null;
+  },
+
   // Users management
   getUsers: () => readJson('users.json', []),
   findUserByEmail: (email) => {
     const users = readJson('users.json', []);
     return users.find(u => u.email.toLowerCase() === email.toLowerCase());
+  },
+  findUserByPhone: (phone) => {
+    const users = readJson('users.json', []);
+    const cleanPhone = phone.replace(/\D/g, '').slice(-10);
+    return users.find(u => u.phone && u.phone.replace(/\D/g, '').slice(-10) === cleanPhone);
   },
   findUserById: (id) => {
     const users = readJson('users.json', []);
@@ -149,5 +204,34 @@ module.exports = {
     users.push(user);
     writeJson('users.json', users);
     return user;
+  },
+
+  // OTP Storage Fallback (Supports Email and Phone)
+  saveOtp: (identifier, otp, purpose = 'login', expiresAt) => {
+    let otps = readJson('otps.json', []);
+    const cleanId = (identifier || '').toLowerCase().trim();
+    // Remove existing OTPs for this identifier
+    otps = otps.filter(o => o.identifier !== cleanId);
+    const newOtp = { identifier: cleanId, otp, purpose, expiresAt: expiresAt.toISOString() };
+    otps.push(newOtp);
+    writeJson('otps.json', otps);
+    return newOtp;
+  },
+  getOtp: (identifier) => {
+    const otps = readJson('otps.json', []);
+    const cleanId = (identifier || '').toLowerCase().trim();
+    const found = otps.find(o => o.identifier === cleanId);
+    if (!found) return null;
+    if (new Date(found.expiresAt) < new Date()) {
+      // Expired
+      return null;
+    }
+    return found;
+  },
+  deleteOtp: (identifier) => {
+    let otps = readJson('otps.json', []);
+    const cleanId = (identifier || '').toLowerCase().trim();
+    otps = otps.filter(o => o.identifier !== cleanId);
+    writeJson('otps.json', otps);
   }
 };

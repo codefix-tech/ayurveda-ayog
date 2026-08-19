@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
-import { createOrder, createRazorpayOrder, verifyRazorpayPayment } from '../services/api';
-import { ShieldCheck, CheckCircle2, Lock, ArrowLeft, CreditCard, Truck, AlertCircle } from 'lucide-react';
+import { createOrder, createRazorpayOrder, verifyRazorpayPayment, verifyPincodeApi } from '../services/api';
+import { ShieldCheck, CheckCircle2, Lock, ArrowLeft, CreditCard, Truck, AlertCircle, MapPin, Check, RefreshCw } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 export default function CheckoutPage() {
@@ -22,8 +22,50 @@ export default function CheckoutPage() {
   const [pincode, setPincode] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Razorpay');
 
+  // Pincode Verification States
+  const [pincodeStatus, setPincodeStatus] = useState(null); // null | 'checking' | 'verified' | 'invalid'
+  const [pincodeInfo, setPincodeInfo] = useState(null);
+
   const shippingFee = cartTotal >= 500 || cartTotal === 0 ? 0 : 49;
   const finalTotal = cartTotal + shippingFee;
+
+  // Auto-trigger Pincode verification when user types 6 digits
+  useEffect(() => {
+    const cleanPin = pincode.replace(/\D/g, '');
+    if (cleanPin.length === 6 && /^[1-9][0-9]{5}$/.test(cleanPin)) {
+      handleVerifyPincode(cleanPin);
+    } else if (cleanPin.length > 0 && cleanPin.length !== 6) {
+      setPincodeStatus(null);
+      setPincodeInfo(null);
+    }
+  }, [pincode]);
+
+  const handleVerifyPincode = async (codeToVerify) => {
+    const pin = (codeToVerify || pincode).replace(/\D/g, '');
+    if (!/^[1-9][0-9]{5}$/.test(pin)) {
+      setPincodeStatus('invalid');
+      setPincodeInfo({ message: 'Please enter a valid 6-digit Indian PIN code' });
+      return;
+    }
+
+    setPincodeStatus('checking');
+    try {
+      const res = await verifyPincodeApi(pin);
+      if (res && res.valid) {
+        setPincodeStatus('verified');
+        setPincodeInfo(res);
+        // Auto-fill city and state
+        if (res.city) setCity(res.city);
+        if (res.state) setState(res.state);
+      } else {
+        setPincodeStatus('invalid');
+        setPincodeInfo({ message: res?.message || 'Delivery not serviceable to this PIN code' });
+      }
+    } catch (err) {
+      setPincodeStatus('invalid');
+      setPincodeInfo({ message: 'Could not verify PIN code. Please check connectivity.' });
+    }
+  };
 
   // COD order handler (no payment gateway)
   const placeCODOrder = async () => {
@@ -52,15 +94,15 @@ export default function CheckoutPage() {
   // Razorpay payment handler
   const initiateRazorpayPayment = async () => {
     try {
-      // 1. Create Razorpay order on backend
+      // 1. Create Razorpay order on backend (returns order_id, amount in paise, currency, key_id)
       const rpOrder = await createRazorpayOrder(finalTotal, `rcpt_${Date.now()}`);
 
       if (!rpOrder.success) {
-        showToast('Failed to initiate payment. Try again.', 'error');
+        showToast(rpOrder.message || 'Failed to initiate payment. Try again.', 'error');
         return;
       }
 
-      // 2. If Razorpay keys are NOT configured (test mode), simulate success
+      // 2. If Razorpay keys are NOT configured (simulated fallback mode)
       if (!rpOrder.isLiveGateway) {
         showToast('Razorpay keys not set — using simulated payment ✓');
         const orderRes = await createOrder({
@@ -68,7 +110,7 @@ export default function CheckoutPage() {
           shippingAddress: { fullName, phone, email, street, city, state, pincode },
           paymentMethod: 'Razorpay (Simulated Test)',
           totalAmount: finalTotal,
-          razorpayOrderId: rpOrder.orderId
+          razorpayOrderId: rpOrder.order_id || rpOrder.orderId
         });
 
         if (orderRes.success) {
@@ -79,41 +121,53 @@ export default function CheckoutPage() {
         return;
       }
 
-      // 3. Open real Razorpay checkout popup
+      const razorpayKey = rpOrder.key_id || rpOrder.keyId || import.meta.env.VITE_RAZORPAY_KEY_ID;
+      const razorpayOrderId = rpOrder.order_id || rpOrder.orderId || rpOrder.id;
+
+      // 3. Open Razorpay checkout modal
       const options = {
-        key: rpOrder.keyId,
+        key: razorpayKey,
         amount: rpOrder.amount,
-        currency: rpOrder.currency,
+        currency: rpOrder.currency || 'INR',
         name: 'Ayurveda Arogya',
         description: `Order Payment - ${cart.length} item(s)`,
-        order_id: rpOrder.orderId,
+        order_id: razorpayOrderId,
         handler: async function (response) {
-          // 4. Verify payment signature on backend
-          const verifyRes = await verifyRazorpayPayment({
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature
-          });
-
-          if (verifyRes.success && verifyRes.verified) {
-            // 5. Save confirmed order to MongoDB
-            const orderRes = await createOrder({
-              items: cart,
-              shippingAddress: { fullName, phone, email, street, city, state, pincode },
-              paymentMethod: 'Razorpay / Online',
-              totalAmount: finalTotal,
-              razorpayOrderId: response.razorpay_order_id,
-              razorpayPaymentId: response.razorpay_payment_id
+          try {
+            // 4. Verify payment signature on backend
+            const verifyRes = await verifyRazorpayPayment({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature
             });
 
-            if (orderRes.success) {
-              setOrderPlaced(orderRes.order);
-              clearCart();
-              showToast('Payment successful! Order placed.');
-              confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+            if (verifyRes.success && verifyRes.verified) {
+              // 5. Save confirmed order to database
+              const orderRes = await createOrder({
+                items: cart,
+                shippingAddress: { fullName, phone, email, street, city, state, pincode },
+                paymentMethod: 'Razorpay Standard Checkout',
+                totalAmount: finalTotal,
+                razorpayOrderId: response.razorpay_order_id,
+                razorpayPaymentId: response.razorpay_payment_id
+              });
+
+              if (orderRes.success) {
+                setOrderPlaced(orderRes.order);
+                clearCart();
+                showToast('Payment verified successfully! Order placed.');
+                confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+              } else {
+                showToast(orderRes.message || 'Payment verified, but failed to record order.', 'error');
+              }
+            } else {
+              showToast(verifyRes.message || 'Payment signature verification failed. Order not placed.', 'error');
             }
-          } else {
-            showToast('Payment verification failed. Please contact support.', 'error');
+          } catch (verifyErr) {
+            console.error('Verification call error:', verifyErr);
+            showToast('Failed to verify payment with server.', 'error');
+          } finally {
+            setSubmitting(false);
           }
         },
         prefill: {
@@ -127,16 +181,24 @@ export default function CheckoutPage() {
         modal: {
           ondismiss: function () {
             setSubmitting(false);
-            showToast('Payment cancelled.', 'error');
+            showToast('Payment window closed by user.', 'error');
           }
         }
       };
 
       const razorpay = new window.Razorpay(options);
+
+      razorpay.on('payment.failed', function (response) {
+        setSubmitting(false);
+        console.error('Razorpay Payment Failed:', response.error);
+        showToast(`Payment Failed: ${response.error.description || 'Transaction declined'}`, 'error');
+      });
+
       razorpay.open();
     } catch (err) {
       console.error('Razorpay payment error:', err);
       showToast('Payment failed. Please try again.', 'error');
+      setSubmitting(false);
     }
   };
 
@@ -149,6 +211,12 @@ export default function CheckoutPage() {
 
     if (!fullName || !phone || !street || !city || !pincode) {
       showToast('Please fill in all mandatory delivery address fields', 'error');
+      return;
+    }
+
+    const cleanPin = pincode.replace(/\D/g, '');
+    if (!/^[1-9][0-9]{5}$/.test(cleanPin)) {
+      showToast('Please enter a valid 6-digit Indian PIN code', 'error');
       return;
     }
 
@@ -309,12 +377,44 @@ export default function CheckoutPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              {/* PINCODE & VERIFICATION SECTION */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                
+                {/* Pincode with live verification */}
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">City *</label>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-xs font-bold text-gray-700">Pincode *</label>
+                    {pincodeStatus === 'checking' && (
+                      <span className="text-[10px] text-emerald-700 flex items-center gap-1 font-semibold">
+                        <RefreshCw className="w-2.5 h-2.5 animate-spin" /> Verifying...
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      maxLength={6}
+                      placeholder="e.g. 110001"
+                      value={pincode}
+                      onChange={(e) => setPincode(e.target.value)}
+                      className={`w-full bg-gray-50 border rounded-xl px-3 py-2.5 text-xs font-mono font-bold focus:ring-2 focus:ring-[#152420] outline-none transition ${
+                        pincodeStatus === 'verified' ? 'border-emerald-500 bg-emerald-50/20' :
+                        pincodeStatus === 'invalid' ? 'border-red-400 bg-red-50/20' : 'border-gray-300'
+                      }`}
+                      required
+                    />
+                    {pincodeStatus === 'verified' && (
+                      <Check className="w-4 h-4 text-emerald-600 absolute right-3 top-3" />
+                    )}
+                  </div>
+                </div>
+
+                {/* City (Auto-populated) */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">City / District *</label>
                   <input
                     type="text"
-                    placeholder="New Delhi"
+                    placeholder="Auto-filled via PIN"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
                     className="w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-2.5 text-xs font-medium focus:ring-2 focus:ring-[#152420]"
@@ -322,29 +422,42 @@ export default function CheckoutPage() {
                   />
                 </div>
 
+                {/* State (Auto-populated) */}
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">State</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">State *</label>
                   <input
                     type="text"
-                    placeholder="Delhi"
+                    placeholder="State"
                     value={state}
                     onChange={(e) => setState(e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-2.5 text-xs font-medium focus:ring-2 focus:ring-[#152420]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Pincode *</label>
-                  <input
-                    type="text"
-                    placeholder="110001"
-                    value={pincode}
-                    onChange={(e) => setPincode(e.target.value)}
                     className="w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-2.5 text-xs font-medium focus:ring-2 focus:ring-[#152420]"
                     required
                   />
                 </div>
               </div>
+
+              {/* Serviceability Badge */}
+              {pincodeStatus === 'verified' && pincodeInfo && (
+                <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-xl text-xs text-emerald-900 flex items-start gap-2.5">
+                  <Truck className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold">
+                      🌿 Deliverable to {pincodeInfo.city}, {pincodeInfo.state}
+                    </p>
+                    <p className="text-[11px] text-emerald-700 mt-0.5">
+                      Estimated delivery in <strong>{pincodeInfo.estimatedDays || '3-4 business days'}</strong> via {pincodeInfo.deliveryPartner || 'Express Courier'} • COD Available ✓
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {pincodeStatus === 'invalid' && (
+                <div className="p-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+                  <span>{pincodeInfo?.message || 'Invalid PIN code. Please enter a valid 6-digit postal code.'}</span>
+                </div>
+              )}
+
             </div>
           </div>
 
@@ -399,15 +512,30 @@ export default function CheckoutPage() {
               Order Summary ({cart.length} item{cart.length > 1 ? 's' : ''})
             </h2>
 
-            <div className="max-h-60 overflow-y-auto divide-y divide-gray-100 pr-1">
+            <div className="max-h-72 overflow-y-auto divide-y divide-gray-100 pr-1">
               {cart.map(item => (
-                <div key={item.id} className="py-3 flex gap-3 items-center">
-                  <img src={item.image} alt={item.title} className="w-12 h-12 object-contain rounded-lg bg-gray-50 p-1 border border-gray-200" />
-                  <div className="flex-1">
-                    <h4 className="text-xs font-bold text-gray-900 line-clamp-1">{item.title}</h4>
-                    <p className="text-[10px] text-gray-500">Qty: {item.quantity}</p>
+                <div key={item.id} className="py-3">
+                  <div className="flex gap-3 items-center">
+                    <img src={item.image} alt={item.title} className="w-12 h-12 object-contain rounded-lg bg-gray-50 p-1 border border-gray-200 shrink-0" onError={(e) => { e.target.src = '/assets/iqkgtttwyi7hddjqvcuw.webp'; }} />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-xs font-bold text-gray-900 line-clamp-1">{item.title}</h4>
+                      <p className="text-[10px] text-gray-500">Qty: {item.quantity} × ₹{item.price.toFixed(2)}</p>
+                    </div>
+                    <span className="text-xs font-black text-gray-900 shrink-0">₹{(item.price * item.quantity).toFixed(2)}</span>
                   </div>
-                  <span className="text-xs font-black text-gray-900">₹{(item.price * item.quantity).toFixed(2)}</span>
+
+                  {/* Batch breakdown sub-items */}
+                  {item.isBulkSplit && Array.isArray(item.batchBreakdown) && item.batchBreakdown.length > 0 && (
+                    <div className="mt-2 ml-14 bg-amber-50/70 border border-amber-200/80 rounded-lg p-2 text-[10px] space-y-1">
+                      <p className="font-bold text-amber-900">📦 30/70 Lot Allocation:</p>
+                      {item.batchBreakdown.map((b, bi) => (
+                        <div key={bi} className="flex justify-between text-gray-700">
+                          <span>{b.label} ({b.batchNumber}): {b.qty} unit{b.qty > 1 ? 's' : ''}</span>
+                          <span className="font-semibold">@ ₹{b.unitPrice}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -434,22 +562,26 @@ export default function CheckoutPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full bg-[#152420] hover:bg-[#1b2f28] text-white text-sm font-bold py-4 rounded-xl shadow-lg hover:shadow-xl transition flex items-center justify-center gap-2"
+              className="w-full bg-[#152420] hover:bg-emerald-950 text-white font-extrabold text-xs py-4 rounded-2xl shadow-lg transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              <Lock className="w-4 h-4" />
-              {submitting ? 'Processing Payment...' : paymentMethod === 'COD' ? `Place COD Order (₹${finalTotal.toFixed(2)})` : `Pay & Place Order (₹${finalTotal.toFixed(2)})`}
+              {submitting ? (
+                <>Processing Order...</>
+              ) : (
+                <>
+                  <Lock className="w-4 h-4 text-emerald-400" />
+                  {paymentMethod === 'COD' ? 'Confirm Cash on Delivery Order' : 'Proceed to Pay with Razorpay'}
+                </>
+              )}
             </button>
 
-            <div className="flex items-center justify-center gap-1.5 text-[10px] text-gray-500 font-medium pt-1">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
-              <span>Razorpay Verified 256-Bit SSL Encrypted</span>
+            <div className="p-3 bg-emerald-50/50 rounded-xl border border-emerald-100/60 flex items-center justify-center gap-2 text-[11px] text-emerald-900 font-semibold">
+              <ShieldCheck className="w-4 h-4 text-emerald-700" />
+              <span>100% Ayurvedic Purity Guarantee & Verified Delivery</span>
             </div>
-
           </div>
         </div>
 
       </form>
-
     </div>
   );
 }
