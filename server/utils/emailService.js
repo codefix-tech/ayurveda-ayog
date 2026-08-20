@@ -10,9 +10,11 @@ function getTransporter() {
   const user = process.env.EMAIL_USER;
   const pass = process.env.EMAIL_PASS;
 
-  if (!user || !pass || !host) {
-    return null;
-  }
+  if (!host) { console.warn('⚠️ [EMAIL] EMAIL_HOST not set in .env'); return null; }
+  if (!user) { console.warn('⚠️ [EMAIL] EMAIL_USER not set in .env'); return null; }
+  if (!pass) { console.warn('⚠️ [EMAIL] EMAIL_PASS not set in .env — email sending disabled'); return null; }
+
+  console.log(`✅ [EMAIL] SMTP configured: ${host}:${port} as ${user}`);
 
   return nodemailer.createTransport({
     host,
@@ -197,8 +199,123 @@ async function verifyEmailOtp({ email, otp }) {
   return { valid: false, message: 'Incorrect OTP entered. Please check and retry.' };
 }
 
+/**
+ * Send appointment booking confirmation email to patient
+ */
+async function sendAppointmentConfirmation(appointment) {
+  const { patientName, patientEmail, doctorName, doctorHospital, date, slot, id, fee, symptoms } = appointment;
+
+  if (!patientEmail || !patientEmail.includes('@')) {
+    console.log(`ℹ️ [EMAIL] Skipping confirmation — no patient email provided for appointment ${id}`);
+    return { sent: false, reason: 'No patient email' };
+  }
+
+  const transporter = getTransporter();
+  if (!transporter) {
+    console.warn(`⚠️ [EMAIL] Appointment confirmation NOT sent — SMTP not configured`);
+    return { sent: false, reason: 'SMTP not configured' };
+  }
+
+  // Format date for display
+  const formattedDate = new Date(date).toLocaleDateString('en-IN', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  });
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f5; margin: 0; padding: 20px; }
+        .container { max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.06); border: 1px solid #e0ebe4; }
+        .header { background: #152420; padding: 32px 24px; text-align: center; color: #ffffff; }
+        .header h1 { margin: 0 0 6px 0; font-size: 24px; font-weight: 800; }
+        .header p { margin: 0; font-size: 13px; color: #a3c9b9; }
+        .badge { display: inline-block; background: #d1fae5; color: #065f46; font-size: 12px; font-weight: 700; padding: 6px 16px; border-radius: 50px; margin: 20px 0 10px; }
+        .content { padding: 10px 30px 30px; text-align: center; }
+        .title { font-size: 22px; font-weight: 800; color: #1a2e26; margin-bottom: 6px; }
+        .subtitle { font-size: 13px; color: #5a7369; margin-bottom: 24px; }
+        .details-box { background: #f0f7f3; border-radius: 16px; padding: 20px 24px; text-align: left; margin: 16px 0; }
+        .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #d4edda; font-size: 13px; }
+        .detail-row:last-child { border-bottom: none; }
+        .detail-label { color: #5a7369; font-weight: 600; }
+        .detail-value { color: #152420; font-weight: 700; text-align: right; max-width: 55%; }
+        .apt-id { font-family: monospace; font-size: 15px; font-weight: 800; color: #1c523e; background: #d1fae5; padding: 4px 12px; border-radius: 8px; display: inline-block; margin: 10px 0 20px; }
+        .note { font-size: 12px; color: #829a90; line-height: 1.6; margin-top: 16px; padding: 12px; background: #fafcfa; border-radius: 10px; }
+        .footer { background: #fafcfa; border-top: 1px solid #e8f0ec; padding: 20px; text-align: center; font-size: 11px; color: #889e95; line-height: 1.5; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🌿 Ayurveda Arogya</h1>
+          <p>Natural Healing & Authentic Ayurvedic Care</p>
+        </div>
+        <div class="content">
+          <span class="badge">✅ Appointment Confirmed</span>
+          <h2 class="title">Your Consultation is Booked!</h2>
+          <p class="subtitle">Dear ${patientName}, your appointment has been successfully confirmed. Below are your booking details.</p>
+          
+          <p style="font-size:12px;color:#829a90;margin-bottom:4px;">Appointment ID</p>
+          <div class="apt-id">${id}</div>
+
+          <div class="details-box">
+            <div class="detail-row">
+              <span class="detail-label">👨‍⚕️ Doctor</span>
+              <span class="detail-value">${doctorName}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">🏥 Hospital</span>
+              <span class="detail-value">${doctorHospital}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">📅 Date</span>
+              <span class="detail-value">${formattedDate}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">⏰ Time Slot</span>
+              <span class="detail-value">${slot}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">💰 Consultation Fee</span>
+              <span class="detail-value">₹${fee}</span>
+            </div>
+            ${symptoms ? `<div class="detail-row"><span class="detail-label">📝 Symptoms</span><span class="detail-value">${symptoms}</span></div>` : ''}
+          </div>
+
+          <div class="note">
+            📌 Please arrive 10 minutes before your appointment time. Carry any previous medical reports or prescriptions for reference. For cancellations or rescheduling, please contact us at <strong>+91-8171117711</strong>.
+          </div>
+        </div>
+        <div class="footer">
+          <p><strong>Ayurveda Arogya</strong><br>
+          82/3, First Floor, Patel Nagar, Saharanpur Road, Dehradun, Uttarakhand - 248001<br>
+          Contact: +91-8171117711 | info@ayurvedarogya.com</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM || '"Ayurveda Arogya" <info@ayurvedarogya.com>',
+      to: patientEmail,
+      subject: `✅ Appointment Confirmed — ${doctorName} on ${formattedDate} at ${slot}`,
+      html: htmlContent
+    });
+    console.log(`✉️ [EMAIL] Appointment confirmation sent to ${patientEmail} for ${id}`);
+    return { sent: true };
+  } catch (err) {
+    console.error(`❌ [EMAIL] Appointment confirmation failed for ${patientEmail}:`, err.message);
+    return { sent: false, reason: err.message };
+  }
+}
+
 module.exports = {
   sendEmailOtp,
   verifyEmailOtp,
-  generate6DigitOtp
+  generate6DigitOtp,
+  sendAppointmentConfirmation
 };

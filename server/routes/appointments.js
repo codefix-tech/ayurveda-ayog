@@ -5,6 +5,7 @@ const db = require('../db/dbManager');
 const Appointment = require('../models/Appointment');
 const { getMongoStatus } = require('../config/db');
 const { protect, optionalAuth, admin } = require('../middleware/auth');
+const { sendAppointmentConfirmation } = require('../utils/emailService');
 
 // Helper: generate collision-resistant appointment ID
 function generateAppointmentId() {
@@ -87,6 +88,11 @@ router.post('/appointments', optionalAuth, async (req, res) => {
 
   // Always persist to dbManager file store
   db.saveAppointment(appointmentData);
+
+  // Send confirmation email to patient (non-blocking — won't fail the booking)
+  sendAppointmentConfirmation(appointmentData).catch((err) =>
+    console.error('Appointment confirmation email error:', err.message)
+  );
 
   res.status(201).json({
     success: true,
